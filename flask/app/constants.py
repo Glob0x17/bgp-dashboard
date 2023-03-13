@@ -1,5 +1,5 @@
 # DEFAULTS - UPDATE ACCORDINGLY
-DEFAULT_ASN = 3701
+DEFAULT_ASN = 23952
 CUSTOMER_BGP_COMMUNITY = '3701:370'  # Prefixes learned from directly connected customers
 TRANSIT_BGP_COMMUNITY = '3701:380'  # Prefixes learned from *paid* transit providers
 PEER_BGP_COMMUNITY = '3701:39.'  # Prefixes learned from bilateral peers and exchanges
