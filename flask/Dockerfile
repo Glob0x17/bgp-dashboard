@@ -11,7 +11,7 @@ RUN apt-get install -y python-dev
 RUN apt-get install -y uwsgi-plugin-python
 RUN apt-get install -y nginx
 RUN apt-get install -y supervisor
-RUN echo 'Etc/UTC' >/etc/timezone
+RUN echo 'Asia/Jakarta' >/etc/timezone
 RUN apt-get install -y --reinstall tzdata
 COPY nginx/flask.conf /etc/nginx/sites-available/
 COPY supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
