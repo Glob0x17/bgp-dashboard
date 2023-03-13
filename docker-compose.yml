@@ -9,7 +9,7 @@ services:
     restart: always
 
   mongodb:
-    image: mongo:latest
+    image: mongo:3.6.23
     expose:
       - 27017
     volumes:
