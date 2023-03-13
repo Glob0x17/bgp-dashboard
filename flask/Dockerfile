@@ -1,7 +1,8 @@
 FROM ubuntu:17.10
 
 ENV DEBIAN_FRONTEND noninteractive
-
+RUN sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+RUN sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get remove -y binutils
 RUN apt-get install -y python3.6
