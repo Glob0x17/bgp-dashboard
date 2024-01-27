@@ -77,7 +77,7 @@ def get_asn_prefixes(asn):
 
     return jsonify({'asn': asn,
                     'name': asn_name_query(asn),
-                    'origin_prefix_count': routes.count(),
+                    'origin_prefix_count': db.bgp.count_documents({'origin_asn': asn, 'active': True}),
                     'is_peer': is_peer(asn),
                     'origin_prefix_list': prefixes})
 

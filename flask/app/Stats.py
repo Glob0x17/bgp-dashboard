@@ -49,7 +49,7 @@ class Stats(object):
 
     def prefix_count(self, version):
         """Given the IP version, return the number of prefixes in the database."""
-        return self.db.bgp.find({'ip_version': version, 'active': True}).count()
+        return self.db.bgp.count_documents({'ip_version': version, 'active': True})
 
     def nexthop_ip_count(self):
         """Return the number of unique next hop IPv4 and IPv6 addresses."""
@@ -68,31 +68,35 @@ class Stats(object):
             query_results = {prefix['nexthop_asn'] for prefix in self.db.bgp.find({'communities': community, 'active': True})}
         return [{'asn': asn if asn is not None else C.DEFAULT_ASN,  # Set "None" ASNs to default
                  'name': asn_name_query(asn),
-                 'ipv4_origin_count': self.db.bgp.find({'origin_asn': asn, 'ip_version': 4, 'active': True}).count(),
-                 'ipv6_origin_count': self.db.bgp.find({'origin_asn': asn, 'ip_version': 6, 'active': True}).count(),
-                 'ipv4_nexthop_count': self.db.bgp.find({'nexthop_asn': asn, 'ip_version': 4, 'active': True}).count(),
-                 'ipv6_nexthop_count': self.db.bgp.find({'nexthop_asn': asn, 'ip_version': 6, 'active': True}).count(),
+                 'ipv4_origin_count': self.db.bgp.count_documents({'origin_asn': asn, 'ip_version': 4, 'active': True}),
+                 'ipv6_origin_count': self.db.bgp.count_documents({'origin_asn': asn, 'ip_version': 6, 'active': True}),
+                 'ipv4_nexthop_count': self.db.bgp.count_documents({'nexthop_asn': asn, 'ip_version': 4, 'active': True}),
+                 'ipv6_nexthop_count': self.db.bgp.count_documents({'nexthop_asn': asn, 'ip_version': 6, 'active': True}),
                  'asn_count':  len(self.db.bgp.distinct('as_path.1', {'nexthop_asn': asn, 'active': True}))}
                 for asn in query_results]
 
     def avg_as_path_len(self, decimal_point_accuracy=2):
         """Return the computed average *as_path* length of all prefixes in the
-        database.  Using a python *set* to remove any AS prepending."""
+        database. Using a python *set* to remove any AS prepending."""
         as_path_counter = 0
         all_prefixes = self.db.bgp.find({'active': True})
+        prefix_count = 0
         for prefix in all_prefixes:
             try:
                 as_path_counter += len(set(prefix['as_path']))  # sets remove duplicate ASN prepending
+                prefix_count += 1
             except Exception:
                 pass
-        return round(as_path_counter/(all_prefixes.count() * 1.0), decimal_point_accuracy)
+        return round(as_path_counter / (prefix_count * 1.0), decimal_point_accuracy) if prefix_count > 0 else 0
+
 
     def communities_count(self):
-        """Return a list of BGP communities and their count"""
+        """Return a list of BGP communities and their count."""
         return [{'community': community,
-                 'count': self.db.bgp.find({'communities': {'$regex': str(community)}, 'active': True}).count(),
+                 'count': self.db.bgp.count_documents({'communities': {'$regex': str(community)}, 'active': True}),
                  'name': None if C.BGP_COMMUNITY_MAP.get(community) is None else C.BGP_COMMUNITY_MAP.get(community)}
                 for community in self.db.bgp.distinct('communities') if community is not None]
+
 
     def cidrs(self):
         """ Return a list of IPv4 and IPv6 network mask counters."""
@@ -113,14 +117,14 @@ class Stats(object):
                 for mask, count in list(Counter(ipv6_masks).items())], key=lambda x: x['mask'])
 
     def top_peers(self, count):
-        """Return a sorted list of top peer dictionaries ordered by prefix count.
-        Limit to *count*."""
-        peers = {peer: self.db.bgp.find({'nexthop_asn': peer, 'active': True}).count()
-                 for peer in self.db.bgp.distinct('nexthop_asn')}
-        return [{'asn': asn[0],
-                 'count': asn[1],
-                 'name': asn_name_query(asn[0])}
-                for asn in self.take(count, sorted(peers.items(), key=lambda x: x[1], reverse=True))]
+         """Return a sorted list of top peer dictionaries ordered by prefix count.
+         Limit to *count*."""
+         peers = {peer: self.db.bgp.count_documents({'nexthop_asn': peer, 'active': True})
+                  for peer in self.db.bgp.distinct('nexthop_asn')}
+         return [{'asn': asn[0],
+                  'count': asn[1],
+                  'name': asn_name_query(asn[0])}
+                 for asn in self.take(count, sorted(peers.items(), key=lambda x: x[1], reverse=True))]
 
     def get_data(self, json=False):
         data_dict = {
@@ -166,3 +170,4 @@ class Stats(object):
             self.customer_ipv4_prefixes += customer['ipv4_origin_count']
             self.customer_ipv6_prefixes += customer['ipv6_origin_count']
         self.timestamp = self.epoch_to_date(time.time())
+
