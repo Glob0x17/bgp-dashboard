@@ -27,12 +27,12 @@ def initialize_database(db):
     # db.bgp.drop()
     db.bgp.create_index('nexthop')
     db.bgp.create_index('nexthop_asn')
-    db.bgp.create_index([('nexthop', pymongo.ASCENDING), ('active', pymongo.ALL)])
-    db.bgp.create_index([('nexthop_asn', pymongo.ASCENDING), ('active', pymongo.ALL)])
-    db.bgp.create_index([('ip_version', pymongo.ASCENDING), ('active', pymongo.ALL)])
-    db.bgp.create_index([('origin_asn', pymongo.ASCENDING), ('ip_version', pymongo.ASCENDING), ('active', pymongo.ALL)])
-    db.bgp.create_index([('communities', pymongo.ASCENDING), ('active', pymongo.ALL)])
-    db.bgp.create_index([('as_path.1', pymongo.ASCENDING), ('nexthop_asn', pymongo.ASCENDING), ('active', pymongo.ALL)])
+    db.bgp.create_index([('nexthop', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
+    db.bgp.create_index([('nexthop_asn', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
+    db.bgp.create_index([('ip_version', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
+    db.bgp.create_index([('origin_asn', pymongo.ASCENDING), ('ip_version', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
+    db.bgp.create_index([('communities', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
+    db.bgp.create_index([('as_path.1', pymongo.ASCENDING), ('nexthop_asn', pymongo.ASCENDING), ('active', pymongo.ASCENDING)])
     db.bgp.update_many(
         {"active": True},  # Search for
         {"$set": {"active": False}})  # Replace with
@@ -164,13 +164,15 @@ def main():
     db = db_connect()
     initialize_database(db)
     for line in sys.stdin:
-        prefix_from_gobgp = build_json(get_update_entry(line))
-        prefix_from_database = db.bgp.find_one({'_id': prefix_from_gobgp['_id']})
-        if prefix_from_database:
-            updated_prefix = update_prefix(prefix_from_gobgp, prefix_from_database)
-            db.bgp.update({"_id": prefix_from_database['_id']}, updated_prefix, upsert=True)
-        else:
-            db.bgp.update({"_id": prefix_from_gobgp['_id']}, prefix_from_gobgp, upsert=True)
+        update_entry = get_update_entry(line)
+        if update_entry is not None:  # Ajout de la vérification ici
+            prefix_from_gobgp = build_json(update_entry)
+            prefix_from_database = db.bgp.find_one({'_id': prefix_from_gobgp['_id']})
+            if prefix_from_database:
+                updated_prefix = update_prefix(prefix_from_gobgp, prefix_from_database)
+                db.bgp.update_one({"_id": prefix_from_database['_id']}, {"$set": updated_prefix}, upsert=True)
+            else:
+                db.bgp.update_one({"_id": prefix_from_gobgp['_id']}, {"$set": prefix_from_gobgp}, upsert=True)
 
 
 if __name__ == "__main__":
